@@ -1,0 +1,12 @@
+[build]
+  publish = "build"
+
+[functions]
+  directory = "netlify/functions/"
+
+# This redirect rule tells Netlify how to handle API calls in development.
+# It proxies any request starting with /api/ to our 'api' serverless function.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
