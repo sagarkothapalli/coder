@@ -231,5 +231,25 @@ app.use('/api/subjects', subjectsRouter);
 
 
 // --- Netlify Function Handler ---
-// This wrapper makes the express app compatible with serverless environments.
-exports.handler = serverless(app);
+const serverlessHandler = serverless(app);
+
+exports.handler = async (event, context) => {
+  console.log("Function invoked:", event.path, event.httpMethod);
+  
+  if (!DATABASE_URL) {
+    console.error("CRITICAL ERROR: DATABASE_URL is not defined in environment variables.");
+  }
+  if (!JWT_SECRET) {
+    console.error("CRITICAL ERROR: JWT_SECRET is not defined in environment variables.");
+  }
+
+  try {
+    return await serverlessHandler(event, context);
+  } catch (error) {
+    console.error("TOP-LEVEL FUNCTION ERROR:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error", error: error.message }),
+    };
+  }
+};
