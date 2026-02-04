@@ -94,11 +94,14 @@ A full-stack attendance tracking application offering distinct views for Student
     - **Logic:** Updated `/api/users/forgot-password` to send an HTML email containing the OTP code.
     - **Fallback:** If env vars are missing, it gracefully falls back to console logging the OTP for development.
 
-### Phase 11: Final Polish & Deployment
-- **Database:** Migrated to new Neon instance (`ep-delicate-shape`).
-- **Auth:** Added password visibility toggle and fixed form logic.
-- **Config:** Updated production environment variables for Database and Email.
-- **Deployment:** Verified GitHub-linked auto-deployment.
+### Phase 11: Deployment Optimization & Fixes
+- **Data Migration:** Successfully migrated all user and subject data from the old Neon database (`ep-lively-resonance`) to the new production instance (`ep-delicate-shape`).
+- **Build Optimization:** Added `postinstall: prisma generate` to `package.json` to ensure the Prisma client is correctly prepared for the Netlify/AWS Lambda environment.
+- **UI/UX Fixes:**
+    - Added **Password Visibility Toggle** (eye icon) to Login, Register, and Forgot Password pages.
+    - Fixed a critical bug in `LoginPage.js` where the authentication token was not being saved to `localStorage`, causing the app to hang on "Loading subjects...".
+- **Environment:** Updated Netlify production environment variables (`DATABASE_URL`, `EMAIL_USER`, `EMAIL_PASS`) via CLI.
+- **Deployment:** Successfully switched to GitHub-triggered CI/CD pipeline.
 
 ---
 
