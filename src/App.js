@@ -1,56 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
+import ForgotPassword from './components/ForgotPassword';
 import AttendanceTracker from './components/AttendanceTracker';
+import CoordinatorDashboard from './components/CoordinatorDashboard';
 import './App.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [role, setRole] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   useEffect(() => {
-    // Check if a token exists in localStorage on app load
+    // Check token and role on app load
     const token = localStorage.getItem('token');
+    const storedRole = localStorage.getItem('role');
     if (token) {
       setIsLoggedIn(true);
+      setRole(storedRole);
     }
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = (userRole) => {
     setIsLoggedIn(true);
-    setShowRegister(false); // Hide register page after successful login
+    setRole(userRole);
+    setShowRegister(false);
+    setShowForgot(false);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('role');
+    localStorage.removeItem('email');
     setIsLoggedIn(false);
+    setRole(null);
     setShowRegister(false);
+    setShowForgot(false);
   };
 
   const handleRegisterSuccess = () => {
-    setShowRegister(false); // Go back to login after successful registration
-  };
-
-  const handleShowRegister = () => {
-    setShowRegister(true);
-  };
-
-  const handleShowLogin = () => {
     setShowRegister(false);
   };
 
   return (
     <div className="App">
       {isLoggedIn ? (
-        <AttendanceTracker onLogout={handleLogout} />
+        role === 'COORDINATOR' ? (
+            <CoordinatorDashboard onLogout={handleLogout} />
+        ) : (
+            <AttendanceTracker onLogout={handleLogout} />
+        )
       ) : showRegister ? (
         <RegisterPage
           onRegisterSuccess={handleRegisterSuccess}
-          onShowLogin={handleShowLogin}
+          onShowLogin={() => setShowRegister(false)}
         />
+      ) : showForgot ? (
+        <ForgotPassword onBack={() => setShowForgot(false)} />
       ) : (
-        <LoginPage onLogin={handleLogin} onShowRegister={handleShowRegister} />
+        <LoginPage 
+          onLogin={handleLogin} 
+          onShowRegister={() => setShowRegister(true)} 
+          onShowForgot={() => setShowForgot(true)}
+        />
       )}
     </div>
   );

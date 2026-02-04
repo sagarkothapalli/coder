@@ -6,10 +6,10 @@ const AddSubjectForm = ({ onAddSubject }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (name && totalClasses) {
+    if (name) {
       onAddSubject({
         name,
-        totalClasses: parseInt(totalClasses, 10),
+        totalClasses: totalClasses ? parseInt(totalClasses, 10) : 0,
         attendedClasses: 0,
         canceledClasses: 0,
       });
@@ -19,25 +19,29 @@ const AddSubjectForm = ({ onAddSubject }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="add-subject-form">
+    <form onSubmit={handleSubmit} style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
       <h3>Add New Subject</h3>
-      <div className="form-group">
-        <label>Subject Name</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="form-group">
+            <label>Subject Name</label>
+            <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Mathematics"
+            />
+        </div>
+        <div className="form-group">
+            <label>Total Classes (Optional)</label>
+            <input
+            type="number"
+            value={totalClasses}
+            onChange={(e) => setTotalClasses(e.target.value)}
+            placeholder="0"
+            />
+        </div>
       </div>
-      <div className="form-group">
-        <label>Total Classes</label>
-        <input
-          type="number"
-          value={totalClasses}
-          onChange={(e) => setTotalClasses(e.target.value)}
-        />
-      </div>
-      <button type="submit">Add Subject</button>
+      <button type="submit" className="cyber-btn" style={{ marginTop: '0' }}>Add Subject</button>
     </form>
   );
 };

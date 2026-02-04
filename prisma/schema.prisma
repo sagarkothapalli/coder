@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   engineType = "library"
@@ -12,11 +9,21 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  username  String    @unique
-  password  String
-  createdAt DateTime  @default(now())
-  subjects  Subject[]
+  id         Int       @id @default(autoincrement())
+  username   String    @unique
+  email      String?   @unique // Optional for existing users, required for new
+  password   String
+  rollNumber Int?      @unique
+  section    Int?
+  role       String    @default("STUDENT")
+  status     String    @default("ACTIVE")
+  
+  // 2FA / Recovery Fields
+  otp        String?   // Stores the hashed or raw OTP
+  otpExpires DateTime? // Expiration time for the OTP
+
+  createdAt  DateTime  @default(now())
+  subjects   Subject[]
 }
 
 model Subject {

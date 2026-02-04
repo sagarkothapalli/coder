@@ -2,62 +2,57 @@ import React, { useState } from 'react';
 
 const RegisterPage = ({ onRegisterSuccess, onShowLogin }) => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rollNumber, setRollNumber] = useState('');
+  const [role, setRole] = useState('STUDENT');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch('/api/users/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
+// ... (rest of handleSubmit)
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Registration successful! Please log in.');
-        onRegisterSuccess();
-      } else {
-        setMessage(data.message || 'Registration failed.');
-      }
-    } catch (error) {
-      setMessage('Network error. Please try again.');
-    }
-  };
-
-  return (
-    <div className="login-container">
-      <h2>Register</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </div>
         <div className="form-group">
           <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Choose a strong password"
+              style={{ width: '100%', paddingRight: '40px' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                color: '#666'
+              }}
+              title={showPassword ? "Hide Password" : "Show Password"}
+            >
+              {showPassword ? "🙈" : "👁️"}
+            </button>
+          </div>
         </div>
-        {message && <p className="message">{message}</p>}
-        <button type="submit">Register</button>
+
+        {error && <div className="error-msg">{error}</div>}
+        <button type="submit">Create Account</button>
       </form>
-      <p>
+      <div className="footer-text">
         Already have an account?{' '}
         <button className="link-button" onClick={onShowLogin}>
-          Login
+          Sign In
         </button>
-      </p>
+      </div>
     </div>
   );
 };
