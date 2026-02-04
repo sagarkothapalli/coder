@@ -27,7 +27,7 @@
     "start": "react-scripts start",
     "dev": "netlify dev",
     "lambda": "netlify functions:serve --port 9999",
-    "build": "prisma generate && react-scripts build",
+    "build": "react-scripts build",
     "postinstall": "prisma generate || true",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

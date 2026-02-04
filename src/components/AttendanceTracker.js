@@ -185,16 +185,15 @@ const AttendanceTracker = ({ onLogout }) => {
   const [error, setError] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
   
-  const [userEmail, setUserEmail] = useState(localStorage.getItem('email'));
   const [isVerified, setIsVerified] = useState(localStorage.getItem('isEmailVerified') === 'true');
 
   const username = localStorage.getItem('username');
   const token = localStorage.getItem('token');
 
   const onVerificationComplete = (email) => {
-      setUserEmail(email);
       setIsVerified(true);
       localStorage.setItem('isEmailVerified', 'true');
+      if (email) localStorage.setItem('email', email);
   };
 
   const fetchSubjects = useCallback(async () => {
