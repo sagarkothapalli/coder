@@ -121,7 +121,7 @@ usersRouter.post('/link-google', protect, async (req, res) => {
         // Update current user
         await prisma.user.update({
             where: { id: req.user.id },
-            data: { email: googleEmail }
+            data: { email: googleEmail, isEmailVerified: true }
         });
 
         res.json({ message: "Google Account linked successfully!", email: googleEmail });
@@ -247,7 +247,8 @@ usersRouter.post('/login', async (req, res) => {
             username: user.username,
             role: user.role,
             section: user.section,
-            email: user.email // Add email to check for linking status
+            email: user.email,
+            isEmailVerified: user.isEmailVerified
         });
 
     } catch (error) {
@@ -412,6 +413,7 @@ usersRouter.post('/verify-email-otp', protect, async (req, res) => {
             where: { id: user.id },
             data: { 
                 email: email, 
+                isEmailVerified: true,
                 otp: null, 
                 otpExpires: null 
             }

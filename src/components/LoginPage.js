@@ -27,6 +27,7 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
         localStorage.setItem('username', data.username);
         localStorage.setItem('role', data.role);
         if (data.email) localStorage.setItem('email', data.email);
+        localStorage.setItem('isEmailVerified', data.isEmailVerified);
         
         onLogin(data.role); // Pass ONLY the role string up to App.js
       } else {

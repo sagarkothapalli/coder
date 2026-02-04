@@ -17,6 +17,7 @@ model User {
   section    Int?
   role       String    @default("STUDENT")
   status     String    @default("ACTIVE")
+  isEmailVerified Boolean @default(false)
   
   // 2FA / Recovery Fields
   otp        String?   // Stores the hashed or raw OTP

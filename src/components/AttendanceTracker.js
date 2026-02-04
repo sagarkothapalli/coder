@@ -3,7 +3,7 @@ import Subject from './Subject';
 import AddSubjectForm from './AddSubjectForm';
 import Dashboard from './Dashboard';
 
-const GoogleLinkBanner = ({ onLinkSuccess }) => {
+const GoogleLinkBanner = ({ onVerifySuccess }) => {
     const googleButton = useRef(null);
 
     const handleGoogleResponse = useCallback(async (response) => {
@@ -20,7 +20,7 @@ const GoogleLinkBanner = ({ onLinkSuccess }) => {
             if (res.ok) {
                 alert('Success! Your Google Account is now linked.');
                 localStorage.setItem('email', data.email);
-                onLinkSuccess(data.email);
+                onVerifySuccess(data.email);
             } else {
                 alert('Error linking account: ' + data.message);
             }
@@ -28,7 +28,7 @@ const GoogleLinkBanner = ({ onLinkSuccess }) => {
             console.error('Google Link Error:', error);
             alert('Failed to connect to server.');
         }
-    }, [onLinkSuccess]);
+    }, [onVerifySuccess]);
 
     useEffect(() => {
         /* eslint-disable-next-line no-undef */
@@ -186,9 +186,16 @@ const AttendanceTracker = ({ onLogout }) => {
   const [showDashboard, setShowDashboard] = useState(false);
   
   const [userEmail, setUserEmail] = useState(localStorage.getItem('email'));
+  const [isVerified, setIsVerified] = useState(localStorage.getItem('isEmailVerified') === 'true');
 
   const username = localStorage.getItem('username');
   const token = localStorage.getItem('token');
+
+  const onVerificationComplete = (email) => {
+      setUserEmail(email);
+      setIsVerified(true);
+      localStorage.setItem('isEmailVerified', 'true');
+  };
 
   const fetchSubjects = useCallback(async () => {
     setLoading(true);
@@ -326,12 +333,12 @@ const AttendanceTracker = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* Show Google Link Banner OR Email Verification if no email is linked */}
-      {!userEmail && (
+      {/* Show Google Link Banner OR Email Verification if no email is linked or not verified */}
+      {!isVerified && (
         <>
-            <GoogleLinkBanner onLinkSuccess={setUserEmail} />
+            <GoogleLinkBanner onVerifySuccess={onVerificationComplete} />
             <div style={{textAlign: 'center', margin: '10px 0', color: '#666'}}>- OR -</div>
-            <EmailVerificationBanner onVerifySuccess={setUserEmail} />
+            <EmailVerificationBanner onVerifySuccess={onVerificationComplete} />
         </>
       )}
 
