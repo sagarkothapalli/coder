@@ -8,7 +8,30 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-// ... (rest of code)
+    setError('');
+
+    try {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        onLogin(data); // Pass the user data (token, role, etc.) up to App.js
+      } else {
+        setError(data.message || 'Login failed.');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Login Error:', err);
+    }
+  };
+
   return (
     <div className="login-container">
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
@@ -24,6 +47,7 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Enter your username"
+            required
           />
         </div>
         <div className="form-group">
@@ -35,6 +59,7 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               style={{ width: '100%', paddingRight: '40px' }}
+              required
             />
             <button
               type="button"

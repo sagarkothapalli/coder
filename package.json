@@ -52,6 +52,7 @@
   "proxy": "http://localhost:8888",
   "devDependencies": {
     "esbuild": "^0.27.2",
+    "neonctl": "^2.20.2",
     "netlify-cli": "^23.14.0",
     "prisma": "^7.3.0"
   }
