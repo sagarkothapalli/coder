@@ -94,6 +94,12 @@ A full-stack attendance tracking application offering distinct views for Student
     - **Logic:** Updated `/api/users/forgot-password` to send an HTML email containing the OTP code.
     - **Fallback:** If env vars are missing, it gracefully falls back to console logging the OTP for development.
 
+### Phase 11: Final Polish & Deployment
+- **Database:** Migrated to new Neon instance (`ep-delicate-shape`).
+- **Auth:** Added password visibility toggle and fixed form logic.
+- **Config:** Updated production environment variables for Database and Email.
+- **Deployment:** Verified GitHub-linked auto-deployment.
+
 ---
 
 ## 🛠 Future Updates
