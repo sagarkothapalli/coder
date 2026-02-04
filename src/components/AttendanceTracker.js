@@ -6,7 +6,7 @@ import Dashboard from './Dashboard';
 const GoogleLinkBanner = ({ onLinkSuccess }) => {
     const googleButton = useRef(null);
 
-    const handleGoogleResponse = async (response) => {
+    const handleGoogleResponse = useCallback(async (response) => {
         try {
             const res = await fetch('/api/users/link-google', {
                 method: 'POST',
@@ -28,10 +28,10 @@ const GoogleLinkBanner = ({ onLinkSuccess }) => {
             console.error('Google Link Error:', error);
             alert('Failed to connect to server.');
         }
-    };
+    }, [onLinkSuccess]);
 
     useEffect(() => {
-        /* global google */
+        /* eslint-disable-next-line no-undef */
         if (window.google && window.google.accounts) {
             const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
             if (!clientId) {
@@ -49,7 +49,7 @@ const GoogleLinkBanner = ({ onLinkSuccess }) => {
                 { theme: "outline", size: "large", text: "continue_with" } 
             );
         }
-    }, []);
+    }, [handleGoogleResponse]);
 
     return (
         <div style={{
