@@ -22,7 +22,13 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
       const data = await response.json();
 
       if (response.ok) {
-        onLogin(data); // Pass the user data (token, role, etc.) up to App.js
+        // Save to localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('role', data.role);
+        if (data.email) localStorage.setItem('email', data.email);
+        
+        onLogin(data.role); // Pass ONLY the role string up to App.js
       } else {
         setError(data.message || 'Login failed.');
       }
