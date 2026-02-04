@@ -217,30 +217,38 @@ usersRouter.post('/register', async (req, res) => {
 
 usersRouter.post('/login', async (req, res) => {
     const { username, password } = req.body;
+    console.log(`Login attempt for: ${username}`);
 
     try {
+        console.log("Finding user in DB...");
         const user = await prisma.user.findUnique({
             where: { username },
         });
 
         if (!user) {
+            console.log("User not found.");
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
 
+        console.log(`User found: ${user.username}, Status: ${user.status}`);
         if (user.status === 'PENDING') return res.status(403).json({ message: 'Access Denied. Pending approval.' });
         if (user.status === 'REJECTED') return res.status(403).json({ message: 'Access Denied. Account rejected.' });
 
+        console.log("Comparing passwords...");
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
+            console.log("Password mismatch.");
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
 
+        console.log("Generating JWT...");
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
             { expiresIn: '1h' }
         );
 
+        console.log("Login successful, sending response.");
         res.json({ 
             message: 'Login successful.', 
             token, 
@@ -252,11 +260,10 @@ usersRouter.post('/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Login error details:', error);
         res.status(500).json({ 
             message: 'Error logging in.', 
-            error: error.message,
-            stack: error.stack 
+            error: error.message
         });
     }
 });
