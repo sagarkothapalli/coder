@@ -427,8 +427,11 @@ usersRouter.post('/verify-email-otp', protect, async (req, res) => {
 
 // --- Subject Routes (Student) ---
 subjectsRouter.get('/', protect, async (req, res) => {
+  console.log(`GET /api/subjects - User: ${req.user.username} (ID: ${req.user.id})`);
   try {
+    console.log("Fetching subjects from Prisma...");
     const subjects = await prisma.subject.findMany({ where: { userId: req.user.id } });
+    console.log(`Successfully fetched ${subjects.length} subjects.`);
     res.json(subjects);
   } catch (error) {
     console.error("Get subjects error:", error);
@@ -641,7 +644,9 @@ app.use('/api/coordinator', coordinatorRouter);
 const serverlessHandler = serverless(app);
 
 exports.handler = async (event, context) => {
-  // console.log("Function invoked:", event.path, event.httpMethod);
+  console.log("--- API Function Invoked ---");
+  console.log("Path:", event.path);
+  console.log("Method:", event.httpMethod);
   
   if (!DATABASE_URL) {
     console.error("CRITICAL ERROR: DATABASE_URL is not defined in environment variables.");
