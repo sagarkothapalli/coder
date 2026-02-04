@@ -64,9 +64,13 @@ const CoordinatorDashboard = ({ onLogout }) => {
   // --- Effects ---
 
   useEffect(() => {
-    fetchSections();
-    fetchPending();
-  }, [fetchSections, fetchPending]);
+    if (token) {
+        fetchSections();
+        fetchPending();
+    } else {
+        setLoading(false);
+    }
+  }, [token, fetchSections, fetchPending]);
 
   useEffect(() => {
     if (activeTab === 'classes') fetchStudents();

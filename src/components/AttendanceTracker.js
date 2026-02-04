@@ -219,6 +219,8 @@ const AttendanceTracker = ({ onLogout }) => {
   useEffect(() => {
     if (token) {
       fetchSubjects();
+    } else {
+      setLoading(false);
     }
   }, [token, fetchSubjects]);
 

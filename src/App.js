@@ -24,6 +24,7 @@ function App() {
 
   const handleLogin = (userRole) => {
     setIsLoggedIn(true);
+    // userRole should be a string 'STUDENT' or 'COORDINATOR'
     setRole(userRole);
     setShowRegister(false);
     setShowForgot(false);
