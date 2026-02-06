@@ -475,45 +475,43 @@ usersRouter.post('/register', async (req, res) => {
 
 usersRouter.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    console.log(`Login attempt for: ${username}`);
+    console.log(`[LOGIN] Attempt for: ${username}`);
 
     try {
-        console.log("Finding user in DB...");
+        console.log(`[LOGIN] Connecting to DB for ${username}...`);
         const user = await prisma.user.findUnique({
             where: { username },
         });
 
         if (!user) {
-            console.log("User not found.");
+            console.log(`[LOGIN] User not found: ${username}`);
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
 
-        console.log(`User found: ${user.username}, Status: ${user.status}`);
+        console.log(`[LOGIN] User found. Status: ${user.status}. Verifying password...`);
         if (user.status === 'PENDING') return res.status(403).json({ message: 'Access Denied. Pending approval.' });
         if (user.status === 'REJECTED') return res.status(403).json({ message: 'Access Denied. Account rejected.' });
 
-        console.log("Comparing passwords...");
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            console.log("Password mismatch.");
+            console.log(`[LOGIN] Password mismatch for ${username}`);
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
 
-        console.log("Generating JWT...");
+        console.log(`[LOGIN] Success. Generating tokens for ${username}...`);
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
-            { expiresIn: '15m' } // Reduced to 15m for security; refresh token handles longevity
+            { expiresIn: '15m' }
         );
 
-        console.log("Generating Refresh Token...");
         const refreshToken = await generateRefreshToken(user.id);
 
-        console.log("Login successful, sending response.");
+        console.log(`[LOGIN] Tokens generated. Sending response.`);
         res.json({ 
             message: 'Login successful.', 
             token, 
-            refreshToken, // New field for mobile
+            refreshToken,
             username: user.username,
             role: user.role,
             section: user.section,
@@ -522,9 +520,9 @@ usersRouter.post('/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Login error details:', error);
+        console.error('[LOGIN CRITICAL ERROR]', error);
         res.status(500).json({ 
-            message: 'Error logging in.', 
+            message: 'Internal Server Error during login.', 
             error: error.message
         });
     }

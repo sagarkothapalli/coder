@@ -71,8 +71,8 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
   return (
     <div className="glass-panel" style={{ maxWidth: '500px', margin: '60px auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-          <h1 style={{ fontSize: '3.5rem', marginBottom: '10px' }}>Track Yourself</h1>
-          <p className="welcome-text">Login to your dashboard</p>
+          <h1 style={{ fontSize: '3.5rem', marginBottom: '10px' }}>Welcome Back</h1>
+          <p className="welcome-text">Sign in to access your dashboard</p>
       </div>
 
       <div ref={googleButton} style={{ marginBottom: '30px' }}></div>
