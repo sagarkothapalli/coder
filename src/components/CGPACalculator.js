@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
+// Standard Credits for the 8 Semesters (Defined outside to be stable)
+const semesterCredits = [19.5, 19.5, 21.5, 21.5, 21.5, 21.5, 23.0, 12.0];
+
 const CGPACalculator = () => {
-    const semesterCredits = [19.5, 19.5, 21.5, 21.5, 21.5, 21.5, 23.0, 12.0]; 
-    
     const [sgpas, setSgpas] = useState(Array(8).fill(''));
     const [cgpa, setCgpa] = useState(null);
     const [activeSemesters, setActiveSemesters] = useState(0);

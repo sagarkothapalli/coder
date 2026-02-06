@@ -4,7 +4,6 @@ const TodoList = () => {
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
     const [priority, setPriority] = useState('MEDIUM');
-    const [loading, setLoading] = useState(true);
     const [isIgniting, setIsIgniting] = useState(false);
     const token = localStorage.getItem('token');
 
@@ -15,7 +14,6 @@ const TodoList = () => {
             });
             if (res.ok) setTodos(await res.json());
         } catch (err) { console.error(err); }
-        finally { setLoading(false); }
     }, [token]);
 
     useEffect(() => {
