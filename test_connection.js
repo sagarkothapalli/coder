@@ -1,0 +1,1 @@
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function check() { try { await prisma.$connect(); console.log('✅ Connection Successful'); await prisma.$disconnect(); } catch (e) { console.error('❌ Connection Failed:', e); } } check();

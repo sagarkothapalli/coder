@@ -14,7 +14,7 @@ const nodemailer = require('nodemailer');
 
 // --- Security Middleware ---
 const helmet = require('helmet');
-const xss = require('xss-clean');
+// const xss = require('xss-clean'); // Removed: Incompatible with Netlify/Node 18+
 const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
@@ -81,7 +81,7 @@ app.use(limiter);
 
 // 4. Data Sanitization & Pollution Protection
 app.use(express.json({ limit: '10kb' })); // Body limit
-app.use(xss()); // Prevent XSS
+// app.use(xss()); // REMOVED
 app.use(hpp()); // Prevent HTTP Parameter Pollution
 
 // --- Helper Functions ---
