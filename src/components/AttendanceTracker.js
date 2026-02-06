@@ -1,19 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Subject from './Subject';
 import AddSubjectForm from './AddSubjectForm';
 import Dashboard from './Dashboard';
+import CGPACalculator from './CGPACalculator';
+import TodoList from './TodoList';
 
 const GoogleLinkBanner = ({ onVerifySuccess }) => {
     const googleButton = useRef(null);
-
     const handleGoogleResponse = useCallback(async (response) => {
         try {
             const res = await fetch('/api/users/link-google', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({ token: response.credential })
             });
             const data = await res.json();
@@ -21,54 +19,22 @@ const GoogleLinkBanner = ({ onVerifySuccess }) => {
                 alert('Success! Your Google Account is now linked.');
                 localStorage.setItem('email', data.email);
                 onVerifySuccess(data.email);
-            } else {
-                alert('Error linking account: ' + data.message);
             }
-        } catch (error) {
-            console.error('Google Link Error:', error);
-            alert('Failed to connect to server.');
-        }
+        } catch (error) { console.error(error); }
     }, [onVerifySuccess]);
 
     useEffect(() => {
-        /* eslint-disable-next-line no-undef */
         if (window.google && window.google.accounts) {
-            const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-            if (!clientId) {
-                console.warn("Google Client ID not found in environment variables.");
-                return;
-            }
-
-            window.google.accounts.id.initialize({
-                client_id: clientId,
-                callback: handleGoogleResponse
-            });
-            
-            window.google.accounts.id.renderButton(
-                googleButton.current,
-                { theme: "outline", size: "large", text: "continue_with" } 
-            );
+            window.google.accounts.id.initialize({ client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
+            window.google.accounts.id.renderButton(googleButton.current, { theme: "outline", size: "large", text: "continue_with" });
         }
     }, [handleGoogleResponse]);
 
     return (
-        <div style={{
-            backgroundColor: '#e8f0fe', 
-            border: '1px solid #4285f4', 
-            borderRadius: '8px', 
-            padding: '15px', 
-            marginBottom: '20px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '10px'
-        }}>
-            <div>
-                <strong style={{color: '#1a73e8'}}>⚠️ Security Update</strong>
-                <p style={{margin: '5px 0 0 0', fontSize: '0.9rem', color: '#5f6368'}}>
-                    Please link your Google Account to secure your profile and enable easy login.
-                </p>
+        <div className="banner-glass info">
+            <div className="banner-text">
+                <strong>⚠️ Security Update</strong>
+                <p>Please link your Google Account to secure your profile.</p>
             </div>
             <div ref={googleButton}></div>
         </div>
@@ -78,8 +44,7 @@ const GoogleLinkBanner = ({ onVerifySuccess }) => {
 const EmailVerificationBanner = ({ onVerifySuccess }) => {
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
-    const [step, setStep] = useState(1); // 1: Input Email, 2: Input OTP
-    const [msg, setMsg] = useState('');
+    const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
 
     const sendOtp = async () => {
@@ -87,24 +52,11 @@ const EmailVerificationBanner = ({ onVerifySuccess }) => {
         try {
             const res = await fetch('/api/users/send-verification-otp', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({ email })
             });
-            const data = await res.json();
-            if (res.ok) {
-                setStep(2);
-                setMsg('OTP sent to ' + email);
-            } else {
-                alert(data.message);
-            }
-        } catch (err) {
-            alert('Error sending OTP');
-        } finally {
-            setLoading(false);
-        }
+            if (res.ok) setStep(2);
+        } finally { setLoading(false); }
     };
 
     const verifyOtp = async () => {
@@ -112,69 +64,27 @@ const EmailVerificationBanner = ({ onVerifySuccess }) => {
         try {
             const res = await fetch('/api/users/verify-email-otp', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({ email, otp })
             });
             const data = await res.json();
             if (res.ok) {
-                alert('Email verified successfully!');
                 localStorage.setItem('email', data.email);
                 onVerifySuccess(data.email);
-            } else {
-                alert(data.message);
             }
-        } catch (err) {
-            alert('Verification failed');
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
     return (
-        <div style={{
-            backgroundColor: '#fff3cd', 
-            border: '1px solid #ffeeba', 
-            borderRadius: '8px', 
-            padding: '15px', 
-            marginBottom: '20px'
-        }}>
-            <h4 style={{margin: '0 0 10px 0', color: '#856404'}}>⚠️ Action Required: Verify Email</h4>
-            <p style={{fontSize: '0.9rem', marginBottom: '10px'}}>
-                Please verify your email address to enable password recovery.
-            </p>
-            
-            {step === 1 ? (
-                <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                    <input 
-                        type="email" 
-                        value={email} 
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="Enter your email"
-                        style={{flex: 1, minWidth: '200px'}}
-                    />
-                    <button onClick={sendOtp} disabled={loading} className="cyber-btn" style={{marginTop: 0, width: 'auto'}}>
-                        {loading ? 'Sending...' : 'Send OTP'}
-                    </button>
+        <div className="banner-glass warning">
+            <div className="banner-text">
+                <h4>⚠️ Verify Email</h4>
+                <p>Verify your email to enable password recovery.</p>
+                <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+                    <input type={step === 1 ? "email" : "text"} value={step === 1 ? email : otp} onChange={(e) => step === 1 ? setEmail(e.target.value) : setOtp(e.target.value)} placeholder={step === 1 ? "Email" : "OTP"} />
+                    <button onClick={step === 1 ? sendOtp : verifyOtp} disabled={loading} className="btn-primary">{loading ? '...' : (step === 1 ? 'Send' : 'Verify')}</button>
                 </div>
-            ) : (
-                <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                    <input 
-                        type="text" 
-                        value={otp} 
-                        onChange={(e) => setOtp(e.target.value)}
-                        placeholder="Enter 6-digit OTP"
-                        style={{flex: 1, minWidth: '150px'}}
-                    />
-                    <button onClick={verifyOtp} disabled={loading} className="cyber-btn" style={{marginTop: 0, width: 'auto'}}>
-                        {loading ? 'Verifying...' : 'Verify'}
-                    </button>
-                    <button onClick={() => setStep(1)} style={{background:'none', border:'none', textDecoration:'underline', cursor:'pointer'}}>Change Email</button>
-                </div>
-            )}
-            {msg && <p style={{fontSize: '0.85rem', color: 'green', marginTop: '5px'}}>{msg}</p>}
+            </div>
         </div>
     );
 };
@@ -184,178 +94,167 @@ const AttendanceTracker = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
-  
+  const [showCgpa, setShowCgpa] = useState(false);
+  const [showTodo, setShowTodo] = useState(false);
   const [isVerified, setIsVerified] = useState(localStorage.getItem('isEmailVerified') === 'true');
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
   const username = localStorage.getItem('username');
   const token = localStorage.getItem('token');
 
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const switchView = (view) => {
+    setShowDashboard(false);
+    setShowCgpa(view === 'cgpa');
+    setShowTodo(view === 'todo');
+  };
+
   const onVerificationComplete = (email) => {
       setIsVerified(true);
       localStorage.setItem('isEmailVerified', 'true');
-      if (email) localStorage.setItem('email', email);
   };
 
-  const fetchSubjects = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/subjects', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setSubjects(data);
-      } else {
-        setError(data.message + (data.error ? `: ${data.error}` : ''));
-        if (response.status === 401) { // Token expired or invalid
-          onLogout();
+  // Robust Fetcher
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        const res = await fetch('/api/subjects', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) {
+          if (res.status === 401) return onLogout();
+          throw new Error("Failed to load.");
         }
+        const data = await res.json();
+        if (isMounted) {
+          setSubjects(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (isMounted) setError(err.message);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    } catch (err) {
-      setError('Network error or server unreachable.');
-      console.error("Fetch subjects error:", err);
-    } finally {
-      setLoading(false);
-    }
+    };
+    load();
+    return () => { isMounted = false; };
   }, [token, onLogout]);
 
-  useEffect(() => {
-    if (token) {
-      fetchSubjects();
-    } else {
-      setLoading(false);
-    }
-  }, [token, fetchSubjects]);
+  // AI Categorization
+  const isLab = useCallback((name) => {
+    const n = name.toLowerCase();
+    return ['lab', 'laboratory', 'practical', 'workshop', 'project', 'viva'].some(k => n.includes(k));
+  }, []);
+
+  const labSubjects = useMemo(() => subjects.filter(s => isLab(s.name)), [subjects, isLab]);
+  const basicSubjects = useMemo(() => subjects.filter(s => !isLab(s.name)), [subjects, isLab]);
 
   const addSubject = async (subject) => {
+    // Duplicate Check (Case-Insensitive)
+    const exists = subjects.some(s => s.name.toLowerCase() === subject.name.toLowerCase());
+    if (exists) {
+        alert("Subject already exists!");
+        return;
+    }
+
     try {
-      const response = await fetch('/api/subjects', {
+      const res = await fetch('/api/subjects', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(subject),
       });
-      const data = await response.json();
-      if (response.ok) {
-        setSubjects((prevSubjects) => [...prevSubjects, data]);
-      } else {
-        setError(data.message || 'Failed to add subject');
-        if (response.status === 401) {
-          onLogout();
-        }
+      if (res.ok) {
+        const newSubject = await res.json();
+        setSubjects(prev => [...prev, newSubject]);
       }
-    } catch (err) {
-      setError('Network error or server unreachable.');
-      console.error("Add subject error:", err);
-    }
+    } catch (e) {}
   };
 
-  const updateSubject = async (updatedSubject) => {
+  const updateSubject = async (updated) => {
     try {
-      const response = await fetch(`/api/subjects/${updatedSubject.id}`, {
+      const res = await fetch(`/api/subjects/${updated.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(updatedSubject),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(updated),
       });
-      const data = await response.json();
-      if (response.ok) {
-        setSubjects((prevSubjects) =>
-          prevSubjects.map((subject) =>
-            subject.id === updatedSubject.id ? data : subject
-          )
-        );
-      } else {
-        setError(data.message || 'Failed to update subject');
-        if (response.status === 401) {
-          onLogout();
-        }
-      }
-    } catch (err) {
-      setError('Network error or server unreachable.');
-      console.error("Update subject error:", err);
-    }
+      if (res.ok) setSubjects(prev => prev.map(s => s.id === updated.id ? updated : s));
+    } catch (e) {}
   };
 
-  const deleteSubject = async (subjectId) => {
+  const deleteSubject = async (id) => {
     try {
-      const response = await fetch(`/api/subjects/${subjectId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        setSubjects((prevSubjects) => prevSubjects.filter((subject) => subject.id !== subjectId));
-      } else {
-        const data = await response.json();
-        setError(data.message || 'Failed to delete subject');
-        if (response.status === 401) {
-          onLogout();
-        }
-      }
-    } catch (err) {
-      setError('Network error or server unreachable.');
-      console.error("Delete subject error:", err);
-    }
+      const res = await fetch(`/api/subjects/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) setSubjects(prev => prev.filter(s => s.id !== id));
+    } catch (e) {}
   };
 
-  if (loading) {
-    return <div className="attendance-tracker">Loading subjects...</div>;
-  }
+  if (loading) return <div className="glass-panel" style={{textAlign:'center', margin:'100px auto', maxWidth:'400px'}}><h2>Initializing Cockpit...</h2><p>Syncing mission data...</p></div>;
+  if (error) return <div className="glass-panel" style={{textAlign:'center', color:'var(--danger-glow)'}}><h2>System Error</h2><p>{error}</p><button className="btn-primary" onClick={() => window.location.reload()}>Retry Ignition</button></div>;
 
-  if (error) {
-    return <div className="attendance-tracker error">Error: {error}</div>;
-  }
-
-  if (showDashboard) {
-    return <Dashboard subjects={subjects} onBack={() => setShowDashboard(false)} />;
-  }
+  if (showDashboard) return <Dashboard subjects={subjects} onBack={() => setShowDashboard(false)} />;
 
   return (
-    <div className="attendance-tracker">
-      <header>
+    <div className="attendance-container">
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', flexWrap: 'wrap', gap: '20px' }}>
         <div className="header-title">
-            <h1>My Attendance</h1>
-            <p className="welcome-text">Student: <strong>{username}</strong></p>
+            <h1 style={{ margin: 0 }}>My Attendance</h1>
+            <p className="welcome-text" style={{ margin: 0 }}>Student: <strong>{username}</strong></p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="logout-btn" onClick={() => setShowDashboard(true)}>Dashboard</button>
-          <button className="logout-btn" onClick={onLogout}>Sign Out</button>
+        
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+            <div className="header-actions" style={{ display: 'flex', gap: '10px' }}>
+                <button className={`btn-glass ${!showCgpa && !showTodo ? 'active' : ''}`} onClick={() => switchView('attendance')}>
+                    📅 App
+                </button>
+                <button className={`btn-glass ${showCgpa ? 'active' : ''}`} onClick={() => switchView('cgpa')}>
+                    🎓 CGPA
+                </button>
+                <button className={`btn-glass ${showTodo ? 'active' : ''}`} onClick={() => switchView('todo')}>
+                    ✓ Tasks
+                </button>
+                <button className="btn-glass" onClick={() => setShowDashboard(true)}>Stats</button>
+            </div>
+
+            <div className="user-actions" style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+                <button className="btn-glass" onClick={toggleTheme} title="Toggle Theme" style={{ padding: '12px', width: 'auto' }}>
+                    {theme === 'light' ? '🌙' : '☀️'}
+                </button>
+                <button className="btn-danger" onClick={onLogout} style={{ padding: '12px 24px' }}>
+                    Logout
+                </button>
+            </div>
         </div>
       </header>
 
-      {/* Show Google Link Banner OR Email Verification if no email is linked or not verified */}
       {!isVerified && (
-        <>
+        <div style={{display:'flex', flexDirection:'column', gap:'20px', marginBottom: '40px'}}>
             <GoogleLinkBanner onVerifySuccess={onVerificationComplete} />
-            <div style={{textAlign: 'center', margin: '10px 0', color: '#666'}}>- OR -</div>
             <EmailVerificationBanner onVerifySuccess={onVerificationComplete} />
-        </>
+        </div>
       )}
 
-      <AddSubjectForm onAddSubject={addSubject} />
-      <div className="subjects-list">
-        {subjects.length === 0 ? (
-          <p>No subjects added yet. Add your first subject above!</p>
-        ) : (
-          subjects.map((subject) => (
-            <Subject
-              key={subject.id}
-              subject={subject}
-              onUpdate={updateSubject}
-              onDelete={deleteSubject}
-            />
-          ))
-        )}
-      </div>
+      {showCgpa ? <CGPACalculator /> : showTodo ? <TodoList /> : (
+        <>
+          <div className="glass-panel" style={{marginBottom: '40px'}}><AddSubjectForm onAddSubject={addSubject} /></div>
+          {basicSubjects.length > 0 && (
+            <section>
+              <h2 style={{ marginBottom: '20px', fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)', borderLeft: '6px solid var(--primary-glow)', paddingLeft: '15px' }}>Basic Subjects</h2>
+              <div className="subjects-list">{basicSubjects.map((s) => (<Subject key={s.id} subject={s} onUpdate={updateSubject} onDelete={deleteSubject} />))}</div>
+            </section>
+          )}
+          {labSubjects.length > 0 && (
+            <section style={{ marginTop: '60px' }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)', borderLeft: '6px solid var(--success-glow)', paddingLeft: '15px' }}>Lab Section</h2>
+              <div className="subjects-list">{labSubjects.map((s) => (<Subject key={s.id} subject={s} onUpdate={updateSubject} onDelete={deleteSubject} />))}</div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 };

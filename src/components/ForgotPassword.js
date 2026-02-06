@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const ForgotPassword = ({ onBack }) => {
-  const [step, setStep] = useState(1); // 1: Email, 2: OTP + New Password
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -13,7 +13,6 @@ const ForgotPassword = ({ onBack }) => {
     e.preventDefault();
     setError('');
     setMessage('');
-
     try {
       const response = await fetch('/api/users/forgot-password', {
         method: 'POST',
@@ -21,23 +20,17 @@ const ForgotPassword = ({ onBack }) => {
         body: JSON.stringify({ email })
       });
       const data = await response.json();
-      
       if (response.ok) {
         setMessage(data.message);
         setStep(2);
-      } else {
-        setError(data.message);
-      }
-    } catch (err) {
-      setError("Network error.");
-    }
+      } else setError(data.message);
+    } catch (err) { setError("Network error."); }
   };
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
-
     try {
       const response = await fetch('/api/users/reset-password', {
         method: 'POST',
@@ -45,24 +38,19 @@ const ForgotPassword = ({ onBack }) => {
         body: JSON.stringify({ email, otp, newPassword })
       });
       const data = await response.json();
-
       if (response.ok) {
         alert("Password reset successful! Please login.");
-        onBack(); // Go back to login
-      } else {
-        setError(data.message);
-      }
-    } catch (err) {
-      setError("Network error.");
-    }
+        onBack();
+      } else setError(data.message);
+    } catch (err) { setError("Network error."); }
   };
 
   return (
-    <div className="login-container">
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <h2>Account Recovery</h2>
+    <div className="glass-panel" style={{maxWidth: '480px', margin: '40px auto'}}>
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h2>Recover Account</h2>
           <p className="welcome-text">
-            {step === 1 ? "Enter your email to receive a code" : "Enter the code sent to your email"}
+            {step === 1 ? "We'll send you a verification code" : "Check your email for the code"}
           </p>
       </div>
 
@@ -70,70 +58,38 @@ const ForgotPassword = ({ onBack }) => {
         <form onSubmit={handleRequestOtp}>
           <div className="form-group">
             <label>Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="student@example.com"
-              required
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
-          {error && <div className="error-msg">{error}</div>}
-          {message && <div className="status-success" style={{textAlign: 'center', marginBottom: '10px'}}>{message}</div>}
-          <button type="submit">Send Verification Code</button>
+          {error && <div style={{color:'var(--danger-glow)', textAlign:'center', marginBottom:'10px'}}>{error}</div>}
+          {message && <div style={{color:'var(--success-glow)', textAlign:'center', marginBottom:'10px'}}>{message}</div>}
+          <button type="submit" className="btn-primary" style={{width: '100%'}}>Send Code</button>
         </form>
       ) : (
         <form onSubmit={handleResetPassword}>
           <div className="form-group">
-            <label>Verification Code (OTP)</label>
-            <input
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="123456"
-              required
-            />
+            <label>Code</label>
+            <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} required />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{marginBottom: '30px'}}>
             <label>New Password</label>
             <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New strong password"
-                style={{ width: '100%', paddingRight: '40px' }}
-                required
-              />
+              <input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.2rem',
-                  color: '#666'
-                }}
-                title={showPassword ? "Hide Password" : "Show Password"}
+                style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, width: 'auto', boxShadow: 'none' }}
               >
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
-          {error && <div className="error-msg">{error}</div>}
-          <button type="submit">Reset Password</button>
+          {error && <div style={{color:'var(--danger-glow)', textAlign:'center', marginBottom:'10px'}}>{error}</div>}
+          <button type="submit" className="btn-primary" style={{width: '100%'}}>Reset Password</button>
         </form>
       )}
 
-      <div className="footer-text">
-        <button className="link-button" onClick={onBack}>
-          Back to Login
-        </button>
+      <div style={{textAlign: 'center', marginTop: '30px'}}>
+        <button className="btn-glass" onClick={onBack}>Back to Login</button>
       </div>
     </div>
   );

@@ -1,84 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const RegisterPage = ({ onRegisterSuccess, onShowLogin }) => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
+const RegisterPage = ({ onRegisterSuccess, onShowLogin, googleData }) => {
+  const [username, setUsername] = useState(googleData ? googleData.name : '');
+  const [email, setEmail] = useState(googleData ? googleData.email : '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rollNumber, setRollNumber] = useState('');
   const [role, setRole] = useState('STUDENT');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (googleData) {
+      setUsername(googleData.name || '');
+      setEmail(googleData.email || '');
+    }
+  }, [googleData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setLoading(true);
+
+    const isGoogle = !!googleData;
+    const endpoint = isGoogle ? '/api/users/google-register' : '/api/users/register';
+    const body = { username, email, role, rollNumber: role === 'STUDENT' ? parseInt(rollNumber, 10) : undefined };
+    if (isGoogle) body.token = localStorage.getItem('tempGoogleToken');
+    else body.password = password;
 
     try {
-      const response = await fetch('/api/users/register', {
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-            username, 
-            email, 
-            password, 
-            role, 
-            rollNumber: role === 'STUDENT' ? parseInt(rollNumber, 10) : undefined 
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-
       const data = await response.json();
-
       if (response.ok) {
         setSuccessMsg(data.message);
-        setTimeout(() => {
-             onRegisterSuccess(); // Switch to login view
-        }, 2000);
-      } else {
-        setError(data.message || 'Registration failed.');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Registration Error:', err);
-    }
+        if (isGoogle) {
+            localStorage.removeItem('tempGoogleToken');
+            localStorage.removeItem('tempEmail');
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('username', data.username);
+            localStorage.setItem('role', data.role);
+            localStorage.setItem('email', data.email);
+            localStorage.setItem('isEmailVerified', 'true');
+            setTimeout(() => window.location.reload(), 1500);
+        } else setTimeout(() => onRegisterSuccess(), 2000);
+      } else setError(data.message || 'Registration failed.');
+    } catch (err) { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="login-container">
+    <div className="glass-panel" style={{ maxWidth: '540px', margin: '40px auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2>Create Account</h2>
-          <p className="welcome-text">Join us to track your attendance</p>
+          <h2>{googleData ? 'Complete Profile' : 'Join Us'}</h2>
+          <p className="welcome-text">{googleData ? 'Just a few more details' : 'Start tracking your attendance like a pro'}</p>
       </div>
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label>Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Choose a username"
-            required
-          />
+          <label>Full Name / Username</label>
+          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
         </div>
 
         <div className="form-group">
           <label>Email Address</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="student@example.com"
-            required
-          />
+          <input type="email" value={email} disabled={!!googleData} onChange={(e) => setEmail(e.target.value)} required />
         </div>
 
         <div className="form-group">
              <label>Role</label>
-             <select value={role} onChange={(e) => setRole(e.target.value)} style={{width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc'}}>
+             <select value={role} onChange={(e) => setRole(e.target.value)}>
                  <option value="STUDENT">Student</option>
                  <option value="COORDINATOR">Coordinator</option>
              </select>
@@ -87,58 +83,43 @@ const RegisterPage = ({ onRegisterSuccess, onShowLogin }) => {
         {role === 'STUDENT' && (
             <div className="form-group">
               <label>Roll Number</label>
-              <input
-                type="number"
-                value={rollNumber}
-                onChange={(e) => setRollNumber(e.target.value)}
-                placeholder="e.g. 123"
-                required
-              />
+              <input type="number" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} required />
             </div>
         )}
 
-        <div className="form-group">
-          <label>Password</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Choose a strong password"
-              style={{ width: '100%', paddingRight: '40px' }}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: 'absolute',
-                right: '10px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                color: '#666'
-              }}
-              title={showPassword ? "Hide Password" : "Show Password"}
-            >
-              {showPassword ? "🙈" : "👁️"}
-            </button>
-          </div>
-        </div>
+        {!googleData && (
+            <div className="form-group" style={{marginBottom: '30px'}}>
+              <label>Password</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, width: 'auto', boxShadow: 'none' }}
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
+            </div>
+        )}
 
-        {error && <div className="error-msg">{error}</div>}
-        {successMsg && <div className="status-success" style={{textAlign: 'center', marginBottom: '10px'}}>{successMsg}</div>}
+        {error && <div style={{color:'var(--danger-glow)', textAlign:'center', marginBottom:'15px'}}>{error}</div>}
+        {successMsg && <div style={{color:'var(--success-glow)', textAlign:'center', marginBottom:'15px'}}>{successMsg}</div>}
         
-        <button type="submit">Create Account</button>
-      </form>
-      <div className="footer-text">
-        Already have an account?{' '}
-        <button className="link-button" onClick={onShowLogin}>
-          Sign In
+        <button type="submit" className="btn-primary" style={{width:'100%'}} disabled={loading}>
+            {loading ? 'Processing...' : (googleData ? 'Finish Up' : 'Create Account')}
         </button>
+      </form>
+      <div style={{ textAlign: 'center', marginTop: '30px' }}>
+          <button className="btn-glass" onClick={() => {
+              if (googleData) {
+                  localStorage.removeItem('tempGoogleToken');
+                  localStorage.removeItem('tempEmail');
+              }
+              onShowLogin();
+          }}>
+            {googleData ? 'Cancel' : 'Back to Login'}
+          </button>
       </div>
     </div>
   );

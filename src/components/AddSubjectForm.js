@@ -19,9 +19,9 @@ const AddSubjectForm = ({ onAddSubject }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
-      <h3>Add New Subject</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+    <form onSubmit={handleSubmit}>
+      <h3 style={{ marginBottom: '25px', fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-main)' }}>Add New Subject</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px', marginBottom: '30px' }}>
         <div className="form-group">
             <label>Subject Name</label>
             <input
@@ -29,10 +29,11 @@ const AddSubjectForm = ({ onAddSubject }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Mathematics"
+            required
             />
         </div>
         <div className="form-group">
-            <label>Total Classes (Optional)</label>
+            <label>Current Total Classes (Optional)</label>
             <input
             type="number"
             value={totalClasses}
@@ -41,7 +42,9 @@ const AddSubjectForm = ({ onAddSubject }) => {
             />
         </div>
       </div>
-      <button type="submit" className="cyber-btn" style={{ marginTop: '0' }}>Add Subject</button>
+      <button type="submit" className="btn-primary" style={{ width: 'auto', minWidth: '220px', height: '50px' }}>
+        Create Subject
+      </button>
     </form>
   );
 };

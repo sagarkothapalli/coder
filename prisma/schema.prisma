@@ -25,6 +25,17 @@ model User {
 
   createdAt  DateTime  @default(now())
   subjects   Subject[]
+  todos      Todo[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model Subject {
@@ -35,4 +46,15 @@ model Subject {
   canceledClasses Int    @default(0)
   user            User   @relation(fields: [userId], references: [id])
   userId          Int
+}
+
+model Todo {
+  id        Int      @id @default(autoincrement())
+  text      String
+  completed Boolean  @default(false)
+  priority  String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

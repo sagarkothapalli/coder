@@ -103,6 +103,35 @@ A full-stack attendance tracking application offering distinct views for Student
 - **Environment:** Updated Netlify production environment variables (`DATABASE_URL`, `EMAIL_USER`, `EMAIL_PASS`) via CLI.
 - **Deployment:** Successfully switched to GitHub-triggered CI/CD pipeline.
 
+### Phase 12: Data Recovery & System Hardening
+- **Disaster Recovery:** Successfully retrieved lost user data (including `Kalyan`, `Varshit`, `Sanjay`) from an old Render database and performed a "Clean Sync" to Neon, restoring exact attendance counts for all users.
+- **Security Logic:** 
+    - Added `isEmailVerified` to the Prisma schema to track user verification status.
+    - Updated backend to require and track OTP verification for password resets and email linking.
+    - Implemented a persistent "Security Update" notice for unverified accounts.
+- **CI/CD Stabilization:**
+    - Resolved `npm ERESOLVE` conflicts using `.npmrc` with `legacy-peer-deps`.
+    - Fixed CI build failures by resolving ESLint warnings (unused variables, hooks dependencies).
+    - Optimized Prisma client generation by moving it to a `postinstall` script.
+
+### Phase 13: Liquid Glass Redesign & Theming
+- **Goal:** Modernize the application interface with a "Liquid Glass" (glassmorphism) aesthetic and provide support for Light/Dark modes.
+- **Action:**
+    - **Visual Overhaul:** 
+        - Implemented **Glassmorphism**: Panels now use `backdrop-filter: blur(16px)` and translucent backgrounds.
+        - **Animated Background:** Added a dynamic, shifting gradient background for a "liquid" feel.
+        - **Liquid Buttons:** Replaced standard square buttons with pill-shaped gradients that "bulge" on hover.
+    - **Dark/Light Mode:**
+        - Integrated a theme toggle in the main navigation.
+        - Developed a CSS variable system (`:root` vs `[data-theme='dark']`) to handle colors, shadows, and text transitions.
+        - Ensured accessibility by adjusting text contrast for both modes (White text for dark, Black/Deep gray for light).
+    - **Enhanced Buttons:**
+        - **Present:** Fresh green gradient.
+        - **Absent:** Red gradient.
+        - **Absent - (Remove Absent):** Styled as a "Soft Red" glass button (as requested) for a cleaner, more usable look.
+        - **Canceled:** Yellow/Orange gradient.
+    - **Usability:** The UI now feels more premium, mature, and easier on the eyes in low-light environments.
+
 ---
 
 ## 🛠 Future Updates

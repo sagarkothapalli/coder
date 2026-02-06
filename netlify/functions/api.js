@@ -12,6 +12,13 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const nodemailer = require('nodemailer');
 
+// --- Security Middleware ---
+const helmet = require('helmet');
+const xss = require('xss-clean');
+const hpp = require('hpp');
+const rateLimit = require('express-rate-limit');
+const cors = require('cors');
+
 // --- Environment Variables ---
 const JWT_SECRET = process.env.JWT_SECRET;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -49,7 +56,49 @@ const prisma = new PrismaClient({ adapter });
 
 // --- Express App Setup ---
 const app = express();
-app.use(express.json());
+
+// 1. Secure Headers
+app.use(helmet({
+    contentSecurityPolicy: false, // Netlify handles CSP via _headers usually, avoiding conflicts
+}));
+
+// 2. CORS (Strict)
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production' 
+        ? 'https://chic-choux-ccbf20h.netlify.app' 
+        : 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
+
+// 3. Rate Limiting (DDOS Protection)
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { message: "Too many requests, please try again later." }
+});
+app.use(limiter);
+
+// 4. Data Sanitization & Pollution Protection
+app.use(express.json({ limit: '10kb' })); // Body limit
+app.use(xss()); // Prevent XSS
+app.use(hpp()); // Prevent HTTP Parameter Pollution
+
+// --- Helper Functions ---
+const generateRefreshToken = async (userId) => {
+    const refreshToken = require('crypto').randomBytes(40).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+    await prisma.refreshToken.create({
+        data: {
+            token: refreshToken,
+            userId: userId,
+            expiresAt: expiresAt
+        }
+    });
+    return refreshToken;
+};
 
 // --- Middleware ---
 const protect = async (req, res, next) => {
@@ -94,9 +143,193 @@ const admin = (req, res, next) => {
 // --- API Routes ---
 const usersRouter = express.Router();
 const subjectsRouter = express.Router();
+const todosRouter = express.Router();
 const coordinatorRouter = express.Router();
 
+// --- Todo Routes ---
+todosRouter.get('/', protect, async (req, res) => {
+    console.log(`GET /api/todos - User: ${req.user.id}`);
+    try {
+        const todos = await prisma.todo.findMany({ 
+            where: { userId: req.user.id },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(todos);
+    } catch (error) {
+        console.error("GET /api/todos error:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+todosRouter.post('/', protect, async (req, res) => {
+    const { text, priority } = req.body;
+    console.log(`POST /api/todos - User: ${req.user.id}, Text: ${text}`);
+    try {
+        const todo = await prisma.todo.create({
+            data: {
+                text,
+                priority: priority || 'MEDIUM',
+                userId: req.user.id
+            }
+        });
+        res.status(201).json(todo);
+    } catch (error) {
+        console.error("POST /api/todos error:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+todosRouter.put('/:id', protect, async (req, res) => {
+    const { text, completed, priority } = req.body;
+    const id = parseInt(req.params.id, 10);
+    try {
+        const todo = await prisma.todo.findUnique({ where: { id } });
+        if (!todo || todo.userId !== req.user.id) return res.status(404).json({ message: 'Todo not found' });
+
+        const updated = await prisma.todo.update({
+            where: { id },
+            data: { text, completed, priority }
+        });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+todosRouter.delete('/:id', protect, async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    try {
+        const todo = await prisma.todo.findUnique({ where: { id } });
+        if (!todo || todo.userId !== req.user.id) return res.status(404).json({ message: 'Todo not found' });
+
+        await prisma.todo.delete({ where: { id } });
+        res.json({ message: 'Todo deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // --- User Routes ---
+
+usersRouter.post('/google-login', async (req, res) => {
+    const { token: idToken } = req.body;
+    if (!idToken) return res.status(400).json({ message: "Token required" });
+
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: idToken,
+            audience: GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const email = payload['email'];
+        const name = payload['name'];
+
+        // Check if user exists
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user) {
+            // New user - return info for frontend to complete registration
+            return res.status(200).json({ 
+                isNewUser: true,
+                email: email,
+                name: name,
+                message: "Onboarding required" 
+            });
+        }
+
+        // Existing user - login
+        if (user.status === 'PENDING') return res.status(403).json({ message: 'Access Denied. Pending approval.' });
+
+        const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '15m' });
+        const refreshToken = await generateRefreshToken(user.id);
+
+        res.json({ 
+            isNewUser: false,
+            token, 
+            refreshToken, 
+            username: user.username, 
+            role: user.role, 
+            email: user.email,
+            status: user.status 
+        });
+
+    } catch (error) {
+        console.error("Google Login Error:", error);
+        res.status(400).json({ message: "Invalid Google Token" });
+    }
+});
+
+usersRouter.post('/google-register', async (req, res) => {
+    const { token: idToken, role, rollNumber, username } = req.body;
+    if (!idToken || !role || !username) return res.status(400).json({ message: "Missing fields" });
+
+    try {
+        const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+        const payload = ticket.getPayload();
+        const email = payload['email'];
+
+        // Final check if user exists
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) return res.status(409).json({ message: "User already exists" });
+
+        const userRole = role === 'COORDINATOR' ? 'COORDINATOR' : 'STUDENT';
+        let userStatus = 'ACTIVE';
+        let userSection = null;
+        let finalRollNumber = null;
+
+        if (userRole === 'STUDENT') {
+            if (!rollNumber) return res.status(400).json({ message: "Roll number required" });
+            finalRollNumber = parseInt(rollNumber, 10);
+            userSection = Math.ceil(finalRollNumber / 60);
+
+            // Check roll number uniqueness
+            const rollCheck = await prisma.user.findUnique({ where: { rollNumber: finalRollNumber } });
+            if (rollCheck) return res.status(409).json({ message: "Roll Number already registered." });
+        } else {
+            const adminCount = await prisma.user.count({ where: { role: 'COORDINATOR', status: 'ACTIVE' } });
+            if (adminCount > 0) userStatus = 'PENDING';
+        }
+
+        const newUser = await prisma.user.create({
+            data: {
+                username: username,
+                email,
+                password: 'GOOGLE_AUTH_EXTERNAL_' + Math.random().toString(36).slice(-8), 
+                role: userRole,
+                status: userStatus,
+                rollNumber: finalRollNumber,
+                section: userSection,
+                isEmailVerified: true
+            }
+        });
+
+        // Auto-initialize subjects for new Google students
+        if (userRole === 'STUDENT') {
+            const defaultSubjects = ['CCN', 'Microwave Engineering', 'MPMC', 'O.E', 'P.E'];
+            await Promise.all(defaultSubjects.map(s => prisma.subject.create({
+                data: { name: s, userId: newUser.id, totalClasses: 0, attendedClasses: 0, canceledClasses: 0 }
+            })));
+        }
+
+        const token = jwt.sign({ userId: newUser.id, username: newUser.username }, JWT_SECRET, { expiresIn: '15m' });
+        const refreshToken = await generateRefreshToken(newUser.id);
+
+        res.status(201).json({ 
+            message: "Registration successful", 
+            token, 
+            refreshToken, 
+            username: newUser.username, 
+            role: newUser.role,
+            email: newUser.email,
+            status: userStatus
+        });
+
+    } catch (error) {
+        console.error("Google Register Error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
 usersRouter.post('/link-google', protect, async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: "Token is required" });
@@ -202,6 +435,31 @@ usersRouter.post('/register', async (req, res) => {
             },
         });
 
+        // Auto-initialize subjects for new students
+        if (userRole === 'STUDENT') {
+            const defaultSubjects = [
+                'CCN',
+                'Microwave Engineering',
+                'MPMC',
+                'O.E',
+                'P.E'
+            ];
+
+            await Promise.all(
+                defaultSubjects.map(subjectName => 
+                    prisma.subject.create({
+                        data: {
+                            name: subjectName,
+                            userId: newUser.id,
+                            totalClasses: 0,
+                            attendedClasses: 0,
+                            canceledClasses: 0
+                        }
+                    })
+                )
+            );
+        }
+
         let successMsg = 'User registered successfully.';
         if (userStatus === 'PENDING') {
             successMsg = 'Registration submitted. Please wait for an existing Coordinator to approve your access.';
@@ -245,13 +503,17 @@ usersRouter.post('/login', async (req, res) => {
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '15m' } // Reduced to 15m for security; refresh token handles longevity
         );
+
+        console.log("Generating Refresh Token...");
+        const refreshToken = await generateRefreshToken(user.id);
 
         console.log("Login successful, sending response.");
         res.json({ 
             message: 'Login successful.', 
             token, 
+            refreshToken, // New field for mobile
             username: user.username,
             role: user.role,
             section: user.section,
@@ -644,8 +906,53 @@ coordinatorRouter.get('/section/:id', protect, admin, async (req, res) => {
 });
 
 
+usersRouter.post('/refresh', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ message: "Refresh token is required" });
+
+    try {
+        const storedToken = await prisma.refreshToken.findUnique({
+            where: { token: refreshToken },
+            include: { user: true }
+        });
+
+        if (!storedToken || storedToken.expiresAt < new Date()) {
+            if (storedToken) await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+            return res.status(401).json({ message: "Invalid or expired refresh token" });
+        }
+
+        // Generate new Access Token
+        const accessToken = jwt.sign(
+            { userId: storedToken.user.id, username: storedToken.user.username },
+            JWT_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        // Optional: Rotate refresh token
+        const newRefreshToken = await generateRefreshToken(storedToken.user.id);
+        await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+
+        res.json({ accessToken, refreshToken: newRefreshToken });
+
+    } catch (error) {
+        console.error("Refresh error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+usersRouter.post('/logout', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+        try {
+            await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+        } catch (e) {}
+    }
+    res.json({ message: "Logged out successfully" });
+});
+
 app.use('/api/users', usersRouter);
 app.use('/api/subjects', subjectsRouter);
+app.use('/api/todos', todosRouter);
 app.use('/api/coordinator', coordinatorRouter);
 
 
