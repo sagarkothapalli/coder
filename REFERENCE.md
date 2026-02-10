@@ -132,6 +132,50 @@ A full-stack attendance tracking application offering distinct views for Student
         - **Canceled:** Yellow/Orange gradient.
     - **Usability:** The UI now feels more premium, mature, and easier on the eyes in low-light environments.
 
+### Phase 14: Productivity Suite & Security Hardening
+- **Feature:** Added a "Productivity Suite" to help students manage their academic life beyond just attendance.
+- **Design Evolution:**
+    - **Supercar HUD (Mission Control):**
+        - Implemented a high-fidelity "Racing Track" progress bar in the Todo List.
+        - Features a "Velocity" readout and a dynamic cursor that advances along the track.
+        - **Cockpit Input:** A consolidated input group that feels like a dashboard instrument.
+    - **Cube Grid Layout (CGPA):**
+        - Semester inputs are styled as floating "Glass Cubes" that light up when active.
+        - **Interactive Typography:** Grades scale and change color (Green/Yellow/Red) based on performance.
+    - **Liquid Glass 2.0:**
+        - **Dynamic Mesh Background:** A moving "blob" animation (`.liquid-bg`) adds depth and life to the background.
+        - **Smart Theming:** CSS variables (`--mesh-1`, `--glass-bg`) automatically adapt to Light/Dark modes for optimal contrast.
+- **Components:**
+    - **CGPA Calculator:** 
+        - Client-side tool with a "Semester Log" (Cube Layout).
+        - Calculates Cumulative GPA based on 8 semesters of SGPA inputs.
+    - **Mission Control (Todo List):**
+        - Gamified task manager with "Supercar" theming.
+        - **Priorities:** "Eco" (Low), "Sport" (Medium), "Nitro" (High).
+        - **Optimistic UI:** Instant visual updates before server confirmation for a snappy feel.
+- **Backend Security:**
+    - **Session Management:** Implemented **Refresh Tokens** stored in the database.
+    - **Endpoint:** Added `/api/users/refresh` to issue new short-lived Access Tokens (15m) without re-login.
+    - **Logout:** Securely invalidates refresh tokens on server side.
+
+### Phase 15: Furina Web Sync & Role Simplification
+- **Goal:** Align the Web App with the "Furina" Android experience and the "Student-Only" philosophy.
+- **Role Evolution:**
+    - **Removed Coordinator Role:** Deleted all coordinator-specific routes, dashboards, and registration options. The app is now strictly for Students.
+    - **Branding:** Updated Login screen to "Track Yourself / OR YOU SUCK" for a bolder, motivating personality.
+- **Backend Hardening:**
+    - **OTP Security:** Refactored password reset and email verification to use **Bcrypt Hashing** for OTPs (no plain-text OTPs in DB).
+    - **Data Integrity:** Implemented **Input Clamping** to prevent negative attendance/canceled counts.
+- **Cloud Intelligence:**
+    - **CGPA Sync:** Updated the CGPA Calculator to automatically fetch and save data to the backend (`/api/cgpa`), ensuring cross-device consistency.
+    - **Mission Intelligence (Dashboard):** 
+        - Redesigned the Stats view into a "Intelligence" dashboard.
+        - Integrated **History Logs**: Every "Present", "Absent", "Undo", or "Canceled" action is now logged to the backend (`/api/history`).
+        - Added **Activity Trends**: Visualized the last 10 days of attendance activity using a Line Chart.
+- **UX Refinements:**
+    - Simplified registration by removing default subjects; new users now start with a clean "Cockpit".
+    - Unified the "Liquid Glass" aesthetic across all new components.
+
 ---
 
 ## 🛠 Future Updates

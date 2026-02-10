@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
+const LoginPage = ({ onLogin, onShowRegister, onShowForgot, onShowPrivacy }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -71,8 +71,8 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
   return (
     <div className="glass-panel" style={{ maxWidth: '500px', margin: '60px auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-          <h1 style={{ fontSize: '3.5rem', marginBottom: '10px' }}>Welcome Back</h1>
-          <p className="welcome-text">Sign in to access your dashboard</p>
+          <h1 style={{ fontSize: '3.5rem', marginBottom: '10px' }}>Track Yourself</h1>
+          <p className="welcome-text" style={{ color: 'var(--danger-glow)', fontWeight: '800', letterSpacing: '2px' }}>OR YOU SUCK</p>
       </div>
 
       <div ref={googleButton} style={{ marginBottom: '30px' }}></div>
@@ -113,6 +113,12 @@ const LoginPage = ({ onLogin, onShowRegister, onShowForgot }) => {
         <button className="btn-glass" onClick={() => onShowRegister()} style={{ padding: '10px 25px', marginLeft: '10px', width: 'auto' }}>
           Create Account
         </button>
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: '30px' }}>
+          <button className="btn-glass" onClick={onShowPrivacy} style={{ fontSize: '0.8rem', opacity: 0.6, border: 'none', background: 'transparent' }}>
+              Privacy Policy
+          </button>
       </div>
     </div>
   );

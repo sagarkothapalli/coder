@@ -89,7 +89,7 @@ const EmailVerificationBanner = ({ onVerifySuccess }) => {
     );
 };
 
-const AttendanceTracker = ({ onLogout }) => {
+const AttendanceTracker = ({ onLogout, onShowPrivacy }) => {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -175,14 +175,30 @@ const AttendanceTracker = ({ onLogout }) => {
     } catch (e) {}
   };
 
-  const updateSubject = async (updated) => {
+  const updateSubject = async (updated, action = null) => {
     try {
+      // 1. Update Subject
       const res = await fetch(`/api/subjects/${updated.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(updated),
       });
-      if (res.ok) setSubjects(prev => prev.map(s => s.id === updated.id ? updated : s));
+      if (res.ok) {
+          setSubjects(prev => prev.map(s => s.id === updated.id ? updated : s));
+
+          // 2. Log History (if action provided)
+          if (action && ['PRESENT', 'ABSENT', 'UNDO', 'CANCELED'].includes(action)) {
+              await fetch('/api/history', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({ 
+                      subjectId: updated.id, 
+                      type: action, 
+                      timestamp: Date.now() 
+                  })
+              });
+          }
+      }
     } catch (e) {}
   };
 
@@ -193,6 +209,14 @@ const AttendanceTracker = ({ onLogout }) => {
     } catch (e) {}
   };
 
+  // --- Overall Stats Calculation ---
+  const overallStats = useMemo(() => {
+      const totalAttended = subjects.reduce((acc, sub) => acc + sub.attendedClasses, 0);
+      const totalEffective = subjects.reduce((acc, sub) => acc + (sub.totalClasses - sub.canceledClasses), 0);
+      const percentage = totalEffective > 0 ? ((totalAttended / totalEffective) * 100).toFixed(1) : 0;
+      return { percentage: parseFloat(percentage), totalAttended, totalEffective };
+  }, [subjects]);
+
   if (loading) return <div className="glass-panel" style={{textAlign:'center', margin:'100px auto', maxWidth:'400px'}}><h2>Initializing Cockpit...</h2><p>Syncing mission data...</p></div>;
   if (error) return <div className="glass-panel" style={{textAlign:'center', color:'var(--danger-glow)'}}><h2>System Error</h2><p>{error}</p><button className="btn-primary" onClick={() => window.location.reload()}>Retry Ignition</button></div>;
 
@@ -201,9 +225,26 @@ const AttendanceTracker = ({ onLogout }) => {
   return (
     <div className="attendance-container">
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', flexWrap: 'wrap', gap: '20px' }}>
-        <div className="header-title">
-            <h1 style={{ margin: 0 }}>My Attendance</h1>
-            <p className="welcome-text" style={{ margin: 0 }}>Student: <strong>{username}</strong></p>
+        <div className="header-title" style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
+            <div>
+                <h1 style={{ margin: 0 }}>My Attendance</h1>
+                <p className="welcome-text" style={{ margin: 0 }}>Student: <strong>{username}</strong></p>
+            </div>
+            
+            {/* Total Percentage Badge */}
+            <div className="glass-panel" style={{ 
+                padding: '10px 20px', 
+                borderRadius: '15px', 
+                textAlign: 'center', 
+                minWidth: '120px',
+                border: `2px solid ${overallStats.percentage >= 75 ? 'var(--success-glow)' : 'var(--danger-glow)'}`,
+                background: 'rgba(255,255,255,0.05)'
+            }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Readiness</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: overallStats.percentage >= 75 ? 'var(--success-glow)' : 'var(--danger-glow)' }}>
+                    {overallStats.percentage}%
+                </div>
+            </div>
         </div>
         
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
@@ -255,6 +296,12 @@ const AttendanceTracker = ({ onLogout }) => {
           )}
         </>
       )}
+
+      <footer style={{ marginTop: '80px', textAlign: 'center', paddingBottom: '40px' }}>
+          <button className="btn-glass" onClick={onShowPrivacy} style={{ fontSize: '0.8rem', opacity: 0.5, border: 'none', background: 'transparent' }}>
+              Privacy Policy
+          </button>
+      </footer>
     </div>
   );
 };

@@ -32,7 +32,7 @@ const Subject = ({ subject, onUpdate, onDelete }) => {
       totalClasses: (parseInt(editAttended) || 0) + (totalClasses - attendedClasses - canceledClasses) + (parseInt(editCanceled) || 0),
       attendedClasses: parseInt(editAttended) || 0,
       canceledClasses: parseInt(editCanceled) || 0
-    });
+    }, 'EDIT');
     setIsEditing(false);
   };
 
@@ -103,23 +103,23 @@ const Subject = ({ subject, onUpdate, onDelete }) => {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            <button className="btn-primary" onClick={() => onUpdate({ ...subject, attendedClasses: attendedClasses + 1, totalClasses: totalClasses + 1 })}>
+            <button className="btn-primary" onClick={() => onUpdate({ ...subject, attendedClasses: attendedClasses + 1, totalClasses: totalClasses + 1 }, 'PRESENT')}>
               Present
             </button>
-            <button className="btn-danger" onClick={() => onUpdate({ ...subject, totalClasses: totalClasses + 1 })}>
+            <button className="btn-danger" onClick={() => onUpdate({ ...subject, totalClasses: totalClasses + 1 }, 'ABSENT')}>
               Absent
             </button>
             <button 
                 className="btn-glass"
                 onClick={() => {
                     const currentAbsent = totalClasses - attendedClasses - canceledClasses;
-                    if (currentAbsent > 0) onUpdate({ ...subject, totalClasses: totalClasses - 1 });
+                    if (currentAbsent > 0) onUpdate({ ...subject, totalClasses: totalClasses - 1 }, 'UNDO');
                 }}
                 style={{ color: 'var(--danger-glow)', border: '1px solid rgba(255,59,48,0.3)' }}
             >
               Absent -
             </button>
-            <button className="btn-glass" onClick={() => onUpdate({ ...subject, canceledClasses: canceledClasses + 1, totalClasses: totalClasses + 1 })}>
+            <button className="btn-glass" onClick={() => onUpdate({ ...subject, canceledClasses: canceledClasses + 1, totalClasses: totalClasses + 1 }, 'CANCELED')}>
               Canceled
             </button>
             <button className="btn-glass" style={{ gridColumn: 'span 2', fontSize: '0.9rem', opacity: 0.8 }} onClick={() => setIsEditing(true)}>

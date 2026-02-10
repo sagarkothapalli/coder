@@ -18,10 +18,14 @@
         "npm:@testing-library/react@^16.3.2",
         "npm:@testing-library/user-event@^13.5.0",
         "npm:bcryptjs@^3.0.3",
+        "npm:cors@^2.8.6",
         "npm:dotenv@^17.2.3",
         "npm:esbuild@~0.27.2",
+        "npm:express-rate-limit@^8.2.1",
         "npm:express@^5.2.1",
         "npm:google-auth-library@^10.5.0",
+        "npm:helmet@^8.1.0",
+        "npm:hpp@~0.2.3",
         "npm:jsonwebtoken@^9.0.3",
         "npm:neonctl@^2.20.2",
         "npm:netlify-cli@^23.14.0",
@@ -33,7 +37,8 @@
         "npm:react@^19.2.4",
         "npm:recharts@^3.7.0",
         "npm:serverless-http@4",
-        "npm:web-vitals@^2.1.4"
+        "npm:web-vitals@^2.1.4",
+        "npm:xss-clean@~0.1.4"
       ]
     }
   }

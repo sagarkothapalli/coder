@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-const RegisterPage = ({ onRegisterSuccess, onShowLogin, googleData }) => {
+const RegisterPage = ({ onRegisterSuccess, onShowLogin, onShowPrivacy, googleData }) => {
   const [username, setUsername] = useState(googleData ? googleData.name : '');
   const [email, setEmail] = useState(googleData ? googleData.email : '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rollNumber, setRollNumber] = useState('');
-  const [role, setRole] = useState('STUDENT');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +25,13 @@ const RegisterPage = ({ onRegisterSuccess, onShowLogin, googleData }) => {
 
     const isGoogle = !!googleData;
     const endpoint = isGoogle ? '/api/users/google-register' : '/api/users/register';
-    const body = { username, email, role, rollNumber: role === 'STUDENT' ? parseInt(rollNumber, 10) : undefined };
+    // Force role to STUDENT
+    const body = { 
+        username, 
+        email, 
+        role: 'STUDENT', 
+        rollNumber: parseInt(rollNumber, 10) 
+    };
     if (isGoogle) body.token = localStorage.getItem('tempGoogleToken');
     else body.password = password;
 
@@ -73,19 +78,9 @@ const RegisterPage = ({ onRegisterSuccess, onShowLogin, googleData }) => {
         </div>
 
         <div className="form-group">
-             <label>Role</label>
-             <select value={role} onChange={(e) => setRole(e.target.value)}>
-                 <option value="STUDENT">Student</option>
-                 <option value="COORDINATOR">Coordinator</option>
-             </select>
+            <label>Roll Number</label>
+            <input type="number" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} required />
         </div>
-
-        {role === 'STUDENT' && (
-            <div className="form-group">
-              <label>Roll Number</label>
-              <input type="number" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} required />
-            </div>
-        )}
 
         {!googleData && (
             <div className="form-group" style={{marginBottom: '30px'}}>
@@ -110,7 +105,7 @@ const RegisterPage = ({ onRegisterSuccess, onShowLogin, googleData }) => {
             {loading ? 'Processing...' : (googleData ? 'Finish Up' : 'Create Account')}
         </button>
       </form>
-      <div style={{ textAlign: 'center', marginTop: '30px' }}>
+      <div style={{ textAlign: 'center', marginTop: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
           <button className="btn-glass" onClick={() => {
               if (googleData) {
                   localStorage.removeItem('tempGoogleToken');
@@ -119,6 +114,10 @@ const RegisterPage = ({ onRegisterSuccess, onShowLogin, googleData }) => {
               onShowLogin();
           }}>
             {googleData ? 'Cancel' : 'Back to Login'}
+          </button>
+
+          <button className="btn-glass" onClick={onShowPrivacy} style={{ fontSize: '0.8rem', opacity: 0.6, border: 'none', background: 'transparent' }}>
+              Privacy Policy
           </button>
       </div>
     </div>

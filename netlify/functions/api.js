@@ -131,20 +131,89 @@ const protect = async (req, res, next) => {
   }
 };
 
-const admin = (req, res, next) => {
-    if (req.user && req.user.role === 'COORDINATOR' && req.user.status === 'ACTIVE') {
-        next();
-    } else {
-        res.status(401).json({ message: 'Not authorized as active coordinator' });
-    }
-};
-
 
 // --- API Routes ---
 const usersRouter = express.Router();
 const subjectsRouter = express.Router();
 const todosRouter = express.Router();
-const coordinatorRouter = express.Router();
+const cgpaRouter = express.Router();
+const historyRouter = express.Router();
+
+// --- History Routes (AttendanceLog) ---
+historyRouter.get('/', protect, async (req, res) => {
+    try {
+        // Convert BigInt to String for JSON serialization
+        const logs = await prisma.attendanceLog.findMany({
+            where: { userId: req.user.id },
+            orderBy: { timestamp: 'desc' },
+            take: 100 
+        });
+        const serialized = logs.map(log => ({
+            ...log,
+            timestamp: log.timestamp.toString()
+        }));
+        res.json(serialized);
+    } catch (error) {
+        console.error("GET history error:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+historyRouter.post('/', protect, async (req, res) => {
+    const { subjectId, type, timestamp } = req.body;
+    try {
+        const log = await prisma.attendanceLog.create({
+            data: {
+                userId: req.user.id,
+                subjectId,
+                type,
+                timestamp: BigInt(timestamp)
+            }
+        });
+        res.status(201).json({ ...log, timestamp: log.timestamp.toString() });
+    } catch (error) {
+        console.error("POST history error:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// --- CGPA Routes (AcademicRecord) ---
+cgpaRouter.get('/', protect, async (req, res) => {
+    try {
+        const records = await prisma.academicRecord.findMany({
+            where: { userId: req.user.id },
+            orderBy: { id: 'asc' }
+        });
+        res.json(records);
+    } catch (error) {
+        console.error("GET cgpa error:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+cgpaRouter.post('/', protect, async (req, res) => {
+    const { records } = req.body; // Expecting array of { name, credits, sgpa }
+    if (!Array.isArray(records)) return res.status(400).json({ message: "Invalid data format" });
+
+    try {
+        // Transaction: Delete old records, insert new ones (Full Sync)
+        await prisma.$transaction([
+            prisma.academicRecord.deleteMany({ where: { userId: req.user.id } }),
+            prisma.academicRecord.createMany({
+                data: records.map(r => ({
+                    userId: req.user.id,
+                    semester: r.name,
+                    credits: r.credits,
+                    sgpa: r.sgpa
+                }))
+            })
+        ]);
+        res.json({ message: "CGPA data synced" });
+    } catch (error) {
+        console.error("POST cgpa error:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 // --- Todo Routes ---
 todosRouter.get('/', protect, async (req, res) => {
@@ -272,23 +341,18 @@ usersRouter.post('/google-register', async (req, res) => {
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return res.status(409).json({ message: "User already exists" });
 
-        const userRole = role === 'COORDINATOR' ? 'COORDINATOR' : 'STUDENT';
+        const userRole = 'STUDENT';
         let userStatus = 'ACTIVE';
         let userSection = null;
         let finalRollNumber = null;
 
-        if (userRole === 'STUDENT') {
-            if (!rollNumber) return res.status(400).json({ message: "Roll number required" });
-            finalRollNumber = parseInt(rollNumber, 10);
-            userSection = Math.ceil(finalRollNumber / 60);
+        if (!rollNumber) return res.status(400).json({ message: "Roll number required" });
+        finalRollNumber = parseInt(rollNumber, 10);
+        userSection = Math.ceil(finalRollNumber / 60);
 
-            // Check roll number uniqueness
-            const rollCheck = await prisma.user.findUnique({ where: { rollNumber: finalRollNumber } });
-            if (rollCheck) return res.status(409).json({ message: "Roll Number already registered." });
-        } else {
-            const adminCount = await prisma.user.count({ where: { role: 'COORDINATOR', status: 'ACTIVE' } });
-            if (adminCount > 0) userStatus = 'PENDING';
-        }
+        // Check roll number uniqueness
+        const rollCheck = await prisma.user.findUnique({ where: { rollNumber: finalRollNumber } });
+        if (rollCheck) return res.status(409).json({ message: "Roll Number already registered." });
 
         const newUser = await prisma.user.create({
             data: {
@@ -302,14 +366,6 @@ usersRouter.post('/google-register', async (req, res) => {
                 isEmailVerified: true
             }
         });
-
-        // Auto-initialize subjects for new Google students
-        if (userRole === 'STUDENT') {
-            const defaultSubjects = ['CCN', 'Microwave Engineering', 'MPMC', 'O.E', 'P.E'];
-            await Promise.all(defaultSubjects.map(s => prisma.subject.create({
-                data: { name: s, userId: newUser.id, totalClasses: 0, attendedClasses: 0, canceledClasses: 0 }
-            })));
-        }
 
         const token = jwt.sign({ userId: newUser.id, username: newUser.username }, JWT_SECRET, { expiresIn: '15m' });
         const refreshToken = await generateRefreshToken(newUser.id);
@@ -372,31 +428,14 @@ usersRouter.post('/register', async (req, res) => {
         return res.status(400).json({ message: 'Username, password, and email are required.' });
     }
 
-    // Role & Status Logic
-    const userRole = role === 'COORDINATOR' ? 'COORDINATOR' : 'STUDENT';
+    const userRole = 'STUDENT';
     let userStatus = 'ACTIVE'; 
     
-    let userSection = null;
-    let userRollNumber = null;
-
-    if (userRole === 'STUDENT') {
-        if (!rollNumber) {
-            return res.status(400).json({ message: 'Roll Number is required for students.' });
-        }
-        userRollNumber = parseInt(rollNumber, 10);
-        userSection = Math.ceil(userRollNumber / 60);
-    } else {
-        // COORDINATOR Logic
-        try {
-            const existingAdminCount = await prisma.user.count({
-                where: { 
-                    role: 'COORDINATOR',
-                    status: 'ACTIVE'
-                }
-            });
-            if (existingAdminCount > 0) userStatus = 'PENDING';
-        } catch (err) { userStatus = 'PENDING'; }
+    if (!rollNumber) {
+        return res.status(400).json({ message: 'Roll Number is required.' });
     }
+    const userRollNumber = parseInt(rollNumber, 10);
+    const userSection = Math.ceil(userRollNumber / 60);
 
     try {
         const existingUser = await prisma.user.findFirst({
@@ -412,13 +451,11 @@ usersRouter.post('/register', async (req, res) => {
             return res.status(409).json({ message: 'Username or Email already exists.' });
         }
 
-        if (userRole === 'STUDENT') {
-             const existingRoll = await prisma.user.findUnique({
-                where: { rollNumber: userRollNumber },
-            });
-            if (existingRoll) {
-                return res.status(409).json({ message: 'Roll Number already registered.' });
-            }
+        const existingRoll = await prisma.user.findUnique({
+            where: { rollNumber: userRollNumber },
+        });
+        if (existingRoll) {
+            return res.status(409).json({ message: 'Roll Number already registered.' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -435,35 +472,7 @@ usersRouter.post('/register', async (req, res) => {
             },
         });
 
-        // Auto-initialize subjects for new students
-        if (userRole === 'STUDENT') {
-            const defaultSubjects = [
-                'CCN',
-                'Microwave Engineering',
-                'MPMC',
-                'O.E',
-                'P.E'
-            ];
-
-            await Promise.all(
-                defaultSubjects.map(subjectName => 
-                    prisma.subject.create({
-                        data: {
-                            name: subjectName,
-                            userId: newUser.id,
-                            totalClasses: 0,
-                            attendedClasses: 0,
-                            canceledClasses: 0
-                        }
-                    })
-                )
-            );
-        }
-
         let successMsg = 'User registered successfully.';
-        if (userStatus === 'PENDING') {
-            successMsg = 'Registration submitted. Please wait for an existing Coordinator to approve your access.';
-        }
 
         res.status(201).json({ message: successMsg, status: userStatus });
 
@@ -545,13 +554,7 @@ usersRouter.post('/forgot-password', async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        // Save to DB
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { otp, otpExpires }
-        });
-
-        // --- SEND ACTUAL EMAIL ---
+        // --- SEND ACTUAL EMAIL FIRST ---
         if (EMAIL_USER && EMAIL_PASS) {
             console.log("Attempting to send email...");
             const info = await transporter.sendMail({
@@ -562,13 +565,19 @@ usersRouter.post('/forgot-password', async (req, res) => {
                 html: `<p>Your password reset code is: <strong>${otp}</strong></p><p>It is valid for 10 minutes.</p>`
             });
             console.log(`📧 Email sent to ${email}`);
-            console.log(`Message ID: ${info.messageId}`);
-            console.log(`Response: ${info.response}`);
         } else {
              console.log("⚠️ EMAIL_USER or EMAIL_PASS not set. Showing OTP in console:");
              console.log(`🔐 OTP: ${otp}`);
         }
-        // -----------------------
+        
+        // Hash OTP before saving
+        const otpHash = await bcrypt.hash(otp, 10);
+
+        // Save to DB
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { otp: otpHash, otpExpires }
+        });
 
         res.json({ message: "Verification code sent to your email." });
 
@@ -592,7 +601,12 @@ usersRouter.post('/reset-password', async (req, res) => {
     try {
         const user = await prisma.user.findUnique({ where: { email } });
         
-        if (!user || user.otp !== otp) {
+        if (!user || !user.otp) {
+            return res.status(400).json({ message: "Invalid or expired verification code." });
+        }
+
+        const isMatch = await bcrypt.compare(otp, user.otp);
+        if (!isMatch) {
             return res.status(400).json({ message: "Invalid or expired verification code." });
         }
 
@@ -635,14 +649,7 @@ usersRouter.post('/send-verification-otp', protect, async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        // Store OTP temporarily in the user record (even though email isn't updated yet)
-        // Ideally we'd have a separate 'pendingEmail' field, but for simplicity we'll verify against the OTP
-        // and client must send the email again to confirm.
-        await prisma.user.update({
-            where: { id: req.user.id },
-            data: { otp, otpExpires }
-        });
-
+        // Send Email FIRST
         if (EMAIL_USER && EMAIL_PASS) {
             await transporter.sendMail({
                 from: `"Attendance App" <${EMAIL_USER}>`,
@@ -653,6 +660,15 @@ usersRouter.post('/send-verification-otp', protect, async (req, res) => {
         } else {
              console.log(`🔐 OTP for ${email}: ${otp}`);
         }
+
+        // Hash OTP
+        const otpHash = await bcrypt.hash(otp, 10);
+
+        // Store Hashed OTP
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: { otp: otpHash, otpExpires }
+        });
 
         res.json({ message: "Verification code sent." });
     } catch (error) {
@@ -669,9 +685,15 @@ usersRouter.post('/verify-email-otp', protect, async (req, res) => {
     try {
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
 
-        if (!user || user.otp !== otp) {
+        if (!user || !user.otp) {
             return res.status(400).json({ message: "Invalid code." });
         }
+
+        const isMatch = await bcrypt.compare(otp, user.otp);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid code." });
+        }
+
         if (user.otpExpires < new Date()) {
             return res.status(400).json({ message: "Code expired." });
         }
@@ -716,9 +738,9 @@ subjectsRouter.post('/', protect, async (req, res) => {
       data: {
         userId: req.user.id,
         name,
-        totalClasses,
-        attendedClasses,
-        canceledClasses,
+        totalClasses: Math.max(0, parseInt(totalClasses || 0)),
+        attendedClasses: Math.max(0, parseInt(attendedClasses || 0)),
+        canceledClasses: Math.max(0, parseInt(canceledClasses || 0)),
       }
     });
     res.status(201).json(subject);
@@ -744,9 +766,9 @@ subjectsRouter.put('/:id', protect, async (req, res) => {
           where: { id: subjectId },
           data: {
               name,
-              totalClasses,
-              attendedClasses,
-              canceledClasses
+              totalClasses: Math.max(0, parseInt(totalClasses || 0)),
+              attendedClasses: Math.max(0, parseInt(attendedClasses || 0)),
+              canceledClasses: Math.max(0, parseInt(canceledClasses || 0)),
           }
       });
       res.json(updatedSubject);
@@ -780,128 +802,7 @@ subjectsRouter.delete('/:id', protect, async (req, res) => {
   }
 });
 
-// --- Coordinator Routes ---
 
-// Get pending approvals
-coordinatorRouter.get('/pending', protect, admin, async (req, res) => {
-    try {
-        const pendingUsers = await prisma.user.findMany({
-            where: {
-                role: 'COORDINATOR',
-                status: 'PENDING'
-            },
-            select: {
-                id: true,
-                username: true,
-                createdAt: true
-            }
-        });
-        res.json(pendingUsers);
-    } catch (error) {
-        console.error("Get pending error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// Review (Approve/Reject)
-coordinatorRouter.post('/review', protect, admin, async (req, res) => {
-    const { userId, action } = req.body; // action: 'APPROVE' or 'DENY'
-    
-    if (!userId || !action) return res.status(400).json({ message: "Missing fields" });
-
-    try {
-        if (action === 'APPROVE') {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { status: 'ACTIVE' }
-            });
-            res.json({ message: "User approved successfully" });
-        } else if (action === 'DENY') {
-            await prisma.user.delete({
-                where: { id: userId }
-            });
-            res.json({ message: "User request denied and removed" });
-        } else {
-            res.status(400).json({ message: "Invalid action" });
-        }
-    } catch (error) {
-        console.error("Review error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// Get list of unique sections
-coordinatorRouter.get('/sections', protect, admin, async (req, res) => {
-    try {
-        const result = await prisma.user.groupBy({
-            by: ['section'],
-            where: {
-                role: 'STUDENT',
-                section: { not: null }
-            },
-            orderBy: { section: 'asc' }
-        });
-        const sections = result.map(r => r.section);
-        res.json(sections);
-    } catch (error) {
-        console.error("Get sections error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// Get students in a section with calculated attendance
-coordinatorRouter.get('/section/:id', protect, admin, async (req, res) => {
-    const sectionId = parseInt(req.params.id, 10);
-    try {
-        const students = await prisma.user.findMany({
-            where: {
-                role: 'STUDENT',
-                section: sectionId
-            },
-            include: {
-                subjects: true
-            },
-            orderBy: { rollNumber: 'asc' }
-        });
-
-        const studentsWithStats = students.map(student => {
-            let totalAttended = 0;
-            let totalEffective = 0;
-
-            student.subjects.forEach(sub => {
-                totalAttended += sub.attendedClasses;
-                totalEffective += (sub.totalClasses - sub.canceledClasses);
-            });
-
-            const percentage = totalEffective > 0 
-                ? ((totalAttended / totalEffective) * 100).toFixed(2) 
-                : 0;
-
-            return {
-                id: student.id,
-                username: student.username,
-                rollNumber: student.rollNumber,
-                percentage: parseFloat(percentage),
-                subjects: student.subjects.map(sub => ({
-                    id: sub.id,
-                    name: sub.name,
-                    attended: sub.attendedClasses,
-                    total: sub.totalClasses,
-                    canceled: sub.canceledClasses,
-                    percentage: (sub.totalClasses - sub.canceledClasses) > 0 
-                        ? ((sub.attendedClasses / (sub.totalClasses - sub.canceledClasses)) * 100).toFixed(1)
-                        : 0
-                }))
-            };
-        });
-
-        res.json(studentsWithStats);
-
-    } catch (error) {
-        console.error("Get section details error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
 
 
 usersRouter.post('/refresh', async (req, res) => {
@@ -951,7 +852,8 @@ usersRouter.post('/logout', async (req, res) => {
 app.use('/api/users', usersRouter);
 app.use('/api/subjects', subjectsRouter);
 app.use('/api/todos', todosRouter);
-app.use('/api/coordinator', coordinatorRouter);
+app.use('/api/cgpa', cgpaRouter);
+app.use('/api/history', historyRouter);
 
 
 // --- Netlify Function Handler ---

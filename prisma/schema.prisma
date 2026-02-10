@@ -26,6 +26,8 @@ model User {
   createdAt  DateTime  @default(now())
   subjects   Subject[]
   todos      Todo[]
+  academicRecords AcademicRecord[]
+  attendanceLogs  AttendanceLog[]
   refreshTokens RefreshToken[]
 }
 
@@ -46,6 +48,27 @@ model Subject {
   canceledClasses Int    @default(0)
   user            User   @relation(fields: [userId], references: [id])
   userId          Int
+  logs            AttendanceLog[]
+}
+
+model AttendanceLog {
+  id        Int      @id @default(autoincrement())
+  type      String   // "PRESENT", "ABSENT", "UNDO"
+  timestamp BigInt   // Storing millis from Android
+  subjectId Int
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model AcademicRecord {
+  id        Int      @id @default(autoincrement())
+  semester  String
+  credits   String   // Keeping as string to match App UI "19.5"
+  sgpa      String   // Keeping as string "9.8"
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  updatedAt DateTime @updatedAt
 }
 
 model Todo {
